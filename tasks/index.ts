@@ -100,12 +100,11 @@ task("send-ping")
   .setAction(async ({pingAddr, message, hostNetwork}, hre) => {
     await hre.switchNetwork(hostNetwork);
     console.log(`Sending message on ${hre.network.name}...`);
-    const ping = await hre.ethers.getContractAt("Ping", pingAddr);
-    const signerBSC = await hre.ethers.provider.getSigner();
+    const signer = await hre.ethers.provider.getSigner();
+    const ping = await hre.ethers.getContractAt("Ping", pingAddr, signer);
     const value = hre.ethers.parseEther('0.001');
-    const pingWithAttackedSigner = ping.connect(signerBSC);
 
-    const result = await pingWithAttackedSigner.getFunction('startPing')
+    const result = await ping.getFunction('startPing')
       .send(hre.ethers.encodeBytes32String(message), { value });
     await result.wait();
     console.log("Message sent");
@@ -129,13 +128,12 @@ task("send-ping")
     }, 150);
 
     const signer = await hre.ethers.provider.getSigner();
-    const pong = await hre.ethers.getContractAt("Pong", pongAddr);
-    const pongWithSigner = pong.connect(signer);
+    const pong = await hre.ethers.getContractAt("Pong", pongAddr, signer);
 
     do {
       const block = await hre.ethers.provider.getBlockNumber();
 
-      events = await pongWithSigner.queryFilter('MessageReceived', block - 10, 'latest');
+      events = await pong.queryFilter('MessageReceived', block - 10, 'latest');
       if (events.length === 0) {
         await new Promise(resolve => setTimeout(resolve, 60 * 1000));
       }
@@ -146,7 +144,7 @@ task("send-ping")
     process.stdout.write(`\r`); 
     process.stdout.clearLine(0);
 
-    const parsedEvent = pongWithSigner.interface.parseLog(events[0]);
+    const parsedEvent = pong.interface.parseLog(events[0]);
     // console.log(parsedEvent);
     const decoded = hre.ethers.decodeBytes32String(parsedEvent?.args[0]);
     console.log(`Message received with: ${decoded}`);
